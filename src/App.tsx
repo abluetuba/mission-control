@@ -1,5 +1,3 @@
-// import { useState } from 'react'
-
 import "./App.css";
 import {
   twoline2satrec,
@@ -9,16 +7,9 @@ import {
   degreesLat,
   degreesLong,
 } from "satellite.js";
-import {
-  MapContainer,
-  Marker,
-  Popup,
-  TileLayer,
-  useMap,
-  Polyline,
-} from "react-leaflet";
+import { MapContainer, Marker, TileLayer, Polyline } from "react-leaflet";
 import { useEffect, useState } from "react";
-import { LatLngExpression, LatLngTuple } from "leaflet";
+import { LatLngTuple } from "leaflet";
 
 function App() {
   const [lat, setLat] = useState(0);
@@ -31,8 +22,8 @@ function App() {
     async function fecthTle() {
       const res = await fetch(
         //"https://celestrak.org/NORAD/elements/stations.txt"
-        "/stations.txt"
-        //"https://live.ariss.org/iss.txt"
+        // "/stations.txt"
+        "https://live.ariss.org/iss.txt"
       );
       const data = await res.text();
       if (!ignore) {
@@ -53,7 +44,6 @@ function App() {
         // console.log(satRec);
         const date = new Date();
         const positionAndVelocity = propagate(satRec, date);
-        console.log({ positionAndVelocity });
         const gmst = gstime(date);
         const positionEci = positionAndVelocity.position;
         if (typeof positionEci === "object") {
@@ -138,11 +128,7 @@ function App() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          <Marker position={[lat, long]}>
-            <Popup>
-              A pretty CSS3 popup. <br /> Easily customizable.
-            </Popup>
-          </Marker>
+          <Marker position={[lat, long]} />
 
           {pastLines.map((line, i) => (
             // TODO: refactor key
