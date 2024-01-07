@@ -11,11 +11,47 @@ import { MapContainer, Marker, TileLayer, Polyline } from "react-leaflet";
 import { useEffect, useState } from "react";
 import { LatLngTuple } from "leaflet";
 
+type Orbit = {
+  past: LatLngTuple[][];
+  future: LatLngTuple[][];
+};
+
+const generateLines = (
+  orbitArr: LatLngTuple[],
+  startIdx: number,
+  endIdx: number
+) => {
+  const lines = [];
+  let currentLine = [];
+
+  for (let i = startIdx; i < endIdx; i++) {
+    if (currentLine.length === 0) {
+      currentLine.push(orbitArr[i]);
+    } else {
+      const currentSign = Math.sign(orbitArr[i][1]);
+      const lastSign = Math.sign(orbitArr[i - 1][1]);
+
+      if (currentSign !== lastSign && Math.abs(orbitArr[i][1]) > 150) {
+        lines.push([...currentLine]);
+        currentLine = [];
+      }
+
+      currentLine.push(orbitArr[i]);
+    }
+  }
+
+  if (currentLine.length > 0) {
+    lines.push([...currentLine]);
+  }
+
+  return lines;
+};
+
 function App() {
   const [lat, setLat] = useState(0);
   const [long, setLong] = useState(0);
   const [tle, setTle] = useState<string[]>([]);
-  const [orbit, setOrbit] = useState<LatLngTuple[]>([]);
+  const [orbit, setOrbit] = useState<Orbit>({ past: [], future: [] });
 
   useEffect(() => {
     let ignore = false;
@@ -23,11 +59,13 @@ function App() {
       const res = await fetch(
         //"https://celestrak.org/NORAD/elements/stations.txt"
         // "/stations.txt"
-        "https://live.ariss.org/iss.txt"
+        // "https://live.ariss.org/iss.txt"
+        "https://api.wheretheiss.at/v1/satellites/25544/tles?format=text"
       );
       const data = await res.text();
+      console.log({ data });
       if (!ignore) {
-        const lines = data.split("\r\n");
+        const lines = data.split("\n");
         setTle([lines[1], lines[2]]);
       }
     }
@@ -71,47 +109,22 @@ function App() {
           }
           date.setMinutes(date.getMinutes() + 1);
         }
-        setOrbit(orbitArr);
-      }, 500);
+
+        if (orbitArr.length > 0) {
+          setOrbit({
+            past: generateLines(orbitArr, 0, orbitArr.length / 2 + 1),
+            future: generateLines(
+              orbitArr,
+              orbitArr.length / 2,
+              orbitArr.length
+            ),
+          });
+        }
+      }, 1000);
 
       return () => clearInterval(interval);
     }
   }, [tle]);
-
-  const generateLines = (startIdx: number, endIdx: number) => {
-    const lines = [];
-    let currentLine = [];
-
-    for (let i = startIdx; i < endIdx; i++) {
-      if (currentLine.length === 0) {
-        currentLine.push(orbit[i]);
-      } else {
-        const currentSign = Math.sign(orbit[i][1]);
-        const lastSign = Math.sign(orbit[i - 1][1]);
-
-        if (currentSign !== lastSign && Math.abs(orbit[i][1]) > 175) {
-          lines.push([...currentLine]);
-          currentLine = [];
-        }
-
-        currentLine.push(orbit[i]);
-      }
-    }
-
-    if (currentLine.length > 0) {
-      lines.push([...currentLine]);
-    }
-
-    return lines;
-  };
-
-  let pastLines: LatLngTuple[][] = [];
-  let futureLines: LatLngTuple[][] = [];
-
-  if (orbit.length > 0) {
-    pastLines = generateLines(0, orbit.length / 2 + 1);
-    futureLines = generateLines(orbit.length / 2, orbit.length);
-  }
 
   return (
     <>
@@ -130,13 +143,11 @@ function App() {
 
           <Marker position={[lat, long]} />
 
-          {pastLines.map((line, i) => (
-            // TODO: refactor key
-            <Polyline key={i} positions={line} color="orange" />
+          {orbit.past.map((line, i) => (
+            <Polyline key={`past${i}`} positions={line} color="orange" />
           ))}
-          {futureLines.map((line, i) => (
-            // TODO: refactor key
-            <Polyline key={i} positions={line} />
+          {orbit.future.map((line, i) => (
+            <Polyline key={`fut${i}`} positions={line} />
           ))}
           {/*<View center={[lat, long]} />*/}
         </MapContainer>
